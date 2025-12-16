@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<ns3-animation bounds="0 0 200 200">
+  <node id="0" location="10,50" description="Client"/>
+  <node id="1" location="60,50" description="Router"/>
+  <node id="2" location="110,30" description="CloudA (primary)"/>
+  <node id="3" location="110,70" description="CloudB (secondary)"/>
+  <event time="5.0" type="policy-change" description="steer->secondary"/>
+  <event time="10.0" type="policy-change" description="steer->primary"/>
+  <packet>
+    <tx nodeId="0" time="3.05"/>
+    <rx nodeId="2" time="3.15"/>
+  </packet>
+  <packet>
+    <tx nodeId="0" time="6.05"/>
+    <rx nodeId="3" time="6.40"/> <!-- now going via cloudB: higher delay -->
+  </packet>
+</ns3-animation>

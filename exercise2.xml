@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<ns3-animation bounds="0 0 200 120">
+  <node id="0" location="20,50" description="Clients"/>
+  <node id="1" location="60,50" description="Router"/>
+  <node id="2" location="100,50" description="Server"/>
+
+  <link fromId="0" toId="1"/>
+  <link fromId="1" toId="2"/>
+
+  <!-- VoIP packets before congestion -->
+  <packet>
+    <tx nodeId="0" time="1.01"/>
+    <rx nodeId="2" time="1.04"/>
+  </packet>
+
+  <!-- Bulk traffic starts at 5s causing queuing -->
+  <packet>
+    <tx nodeId="0" time="5.01"/>
+    <drop nodeId="1" time="5.02" reason="queue-full"/>
+  </packet>
+
+  <!-- VoIP packets continue to arrive with low delay (priority) -->
+  <packet>
+    <tx nodeId="0" time="6.01"/>
+    <rx nodeId="2" time="6.05"/>
+  </packet>
+</ns3-animation>

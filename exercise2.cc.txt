@@ -1,0 +1,106 @@
+/* exercise2.cc
+ * QoS: Mixed traffic (VoIP-like + Bulk) with a priority queue discipline.
+ * Produces NetAnim XML and FlowMonitor XML.
+ */
+
+#include "ns3/core-module.h"
+#include "ns3/network-module.h"
+#include "ns3/internet-module.h"
+#include "ns3/point-to-point-module.h"
+#include "ns3/applications-module.h"
+#include "ns3/traffic-control-module.h"
+#include "ns3/netanim-module.h"
+#include "ns3/flow-monitor-module.h"
+
+using namespace ns3;
+
+int main(int argc, char *argv[])
+{
+    CommandLine cmd;
+    cmd.Parse(argc, argv);
+
+    NodeContainer clients, router, server;
+    clients.Create(1);
+    router.Create(1);
+    server.Create(1);
+
+    // Two links: clients <-> router and router <-> server (bottleneck)
+    PointToPointHelper access;
+    access.SetDeviceAttribute("DataRate", StringValue("50Mbps"));
+    access.SetChannelAttribute("Delay", StringValue("1ms"));
+
+    PointToPointHelper bottleneck;
+    bottleneck.SetDeviceAttribute("DataRate", StringValue("5Mbps")); // bottleneck
+    bottleneck.SetChannelAttribute("Delay", StringValue("10ms"));
+
+    NetDeviceContainer d_cr = access.Install(clients.Get(0), router.Get(0));
+    NetDeviceContainer d_rs = bottleneck.Install(router.Get(0), server.Get(0));
+
+    InternetStackHelper stack;
+    stack.InstallAll();
+
+    Ipv4AddressHelper addr;
+    addr.SetBase("10.10.10.0", "255.255.255.0");
+    Ipv4InterfaceContainer if_cr = addr.Assign(d_cr);
+
+    addr.SetBase("10.10.20.0", "255.255.255.0");
+    Ipv4InterfaceContainer if_rs = addr.Assign(d_rs);
+
+    // Install TrafficControl with PfifoFast (three-band precedence)
+    TrafficControlHelper tch;
+    tch.SetRootQueueDisc("ns3::PfifoFastQueueDisc");
+    // Install queue disc on router->server device (egress)
+    Ptr<QueueDisc> qd = tch.Install(d_rs.Get(0)).Get(0);
+
+    // Set up applications:
+    // VoIP-like (small periodic packets) -> use UDP OnOff
+    uint16_t voipPort = 4000;
+    OnOffHelper voip("ns3::UdpSocketFactory", InetSocketAddress(if_rs.GetAddress(1), voipPort));
+    voip.SetAttribute("PacketSize", UintegerValue(160));
+    voip.SetAttribute("DataRate", StringValue("64kbps"));
+    voip.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
+    voip.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
+    ApplicationContainer voipApp = voip.Install(clients.Get(0));
+    voipApp.Start(Seconds(1.0));
+    voipApp.Stop(Seconds(20.0));
+
+    // Bulk traffic (large packets) that will overload the bottleneck
+    uint16_t bulkPort = 5000;
+    OnOffHelper bulk("ns3::UdpSocketFactory", InetSocketAddress(if_rs.GetAddress(1), bulkPort));
+    bulk.SetAttribute("PacketSize", UintegerValue(1400));
+    bulk.SetAttribute("DataRate", StringValue("8Mbps")); // larger than bottleneck to cause congestion
+    bulk.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
+    bulk.SetAttribute("OffTime", StringString("ns3::ConstantRandomVariable[Constant=0]"));
+    ApplicationContainer bulkApp = bulk.Install(clients.Get(0));
+    bulkApp.Start(Seconds(5.0));
+    bulkApp.Stop(Seconds(15.0));
+
+    // Sinks on server to receive both flows
+    PacketSinkHelper sinkVoip("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), voipPort));
+    ApplicationContainer sinkV = sinkVoip.Install(server.Get(0));
+    sinkV.Start(Seconds(0.0));
+    sinkV.Stop(Seconds(20.0));
+
+    PacketSinkHelper sinkBulk("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), bulkPort));
+    ApplicationContainer sinkB = sinkBulk.Install(server.Get(0));
+    sinkB.Start(Seconds(0.0));
+    sinkB.Stop(Seconds(20.0));
+
+    // FlowMonitor
+    FlowMonitorHelper fm;
+    Ptr<FlowMonitor> monitor = fm.InstallAll();
+
+    // NetAnim
+    AnimationInterface anim("exercise2_anim.xml");
+    anim.SetConstantPosition(clients.Get(0), 20, 50);
+    anim.SetConstantPosition(router.Get(0), 60, 50);
+    anim.SetConstantPosition(server.Get(0), 100, 50);
+
+    Simulator::Stop(Seconds(20.0));
+    Simulator::Run();
+
+    monitor->SerializeToXmlFile("exercise2_flow.xml", true, true);
+
+    Simulator::Destroy();
+    return 0;
+}

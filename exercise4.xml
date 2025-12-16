@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<ns3-animation bounds="0 0 200 200">
+  <node id="0" location="10,80" description="Branch-C"/>
+  <node id="1" location="60,50" description="DC-A"/>
+  <node id="2" location="110,20" description="DR-B"/>
+  <link fromId="0" toId="1"/>
+  <link fromId="1" toId="2" id="primary"/>
+  <link fromId="1" toId="2" id="backup"/>
+  <event time="6.0" type="link-down" fromId="1" toId="2" id="primary"/>
+  <packet>
+    <tx nodeId="0" time="2.01"/>
+    <rx nodeId="2" time="2.12"/>
+  </packet>
+  <packet>
+    <tx nodeId="0" time="7.01"/>
+    <rx nodeId="2" time="7.45"/> <!-- longer after backup route -->
+  </packet>
+</ns3-animation>

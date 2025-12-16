@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<ns3-animation bounds="0 0 200 200" >
+  <node id="0" location="20,40" description="HQ"/>
+  <node id="1" location="60,10" description="Branch"/>
+  <node id="2" location="100,40" description="DC"/>
+
+  <!-- Links -->
+  <link fromId="0" toId="1"/>
+  <link fromId="1" toId="2"/>
+  <link fromId="2" toId="0"/>
+
+  <!-- Packet events -->
+  <packet>
+    <tx nodeId="0" time="2.01"/>
+    <rx nodeId="2" time="2.03"/>
+  </packet>
+
+  <packet>
+    <tx nodeId="0" time="3.02"/>
+    <rx nodeId="2" time="3.04"/>
+  </packet>
+
+  <!-- Failure event -->
+  <event time="4.0" type="link-down" fromId="2" toId="0"/>
+
+  <!-- Packets rerouted via branch -->
+  <packet>
+    <tx nodeId="0" time="5.02"/>
+    <rx nodeId="1" time="5.03"/>
+  </packet>
+
+  <packet>
+    <tx nodeId="1" time="5.04"/>
+    <rx nodeId="2" time="5.06"/>
+  </packet>
+</ns3-animation>
